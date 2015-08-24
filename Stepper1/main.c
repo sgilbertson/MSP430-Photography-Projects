@@ -12,15 +12,15 @@
  *  - P2.5 = B+
  *  - P2.3 = B-
  *
- * FUTURE:
- *  - Buttons to control start/stop and direction
- *  - Speed potentiometer on analog input A1
- *
- * Connections left alone from PWM project (for now):
- *  - P2.2 drives one MOSFET
- *  - P2.4 drives the other MOSFET
+ * LEDs, which mirror A+/B+
  *  - P1.0 LED 1 (same as on Launchpad)
  *  - P1.6 LED 2 (same as on Launchpad)
+ *
+ *  Speed control
+ *   - A1 = potentiometer
+ *
+ * FUTURE:
+ *  - Buttons to control start/stop and direction
  */
 
 // Stepper motor connection definitions
@@ -41,16 +41,17 @@
 #define     LED_OUT               P1OUT
 
 #define APPROX_CLOCK_HZ 1107754
-#define PWM_FREQUENCY 60
-#define PWM_PERIOD (APPROX_CLOCK_HZ/50)
-#define PWM_25_PERCENT (PWM_PERIOD/4)
-#define PWM_75_PERCENT ((PWM_PERIOD*3)/4)
+#define MIN_STEP_HZ ((unsigned short)((APPROX_CLOCK_HZ+32767)/65535))
+#define MAX_STEP_HZ 500
 
-short irqcount = 0;
-volatile unsigned short step_interval = APPROX_CLOCK_HZ / 10; // start at 10Hz, which is 2.5 steps per second
+volatile short irqcount0 = 0;
+volatile unsigned short step_interval = APPROX_CLOCK_HZ / 20; // start at 20Hz, which is 5 steps per second
 volatile unsigned short stepperBits = STEPPER_A1 | STEPPER_B1;
+volatile unsigned short countPer100ms = 0;
 void main(void)
 {
+	volatile unsigned short lastCountPer100ms = countPer100ms;
+	unsigned short nextStepCounter = 0;
 	WDTCTL = WDTPW + WDTHOLD;  // Stop WDT
 
 	LED_DIR |= LED_ALL;
@@ -58,7 +59,12 @@ void main(void)
 	STEPPER_DIR |= STEPPER_ALL_BITS;
 	STEPPER_OUT &= ~STEPPER_ALL_BITS;
 
-	// Set up a timer interrupt
+	// Set up A/D converter for speed-control potentiometer
+	ADC10CTL0 = ADC10SHT_2 + ADC10ON + ADC10IE; // ADC10ON, interrupt enabled
+	ADC10CTL1 = INCH_1;                       // input A1
+	ADC10AE0 |= 0x02;                         // PA.1 ADC option select
+
+	// Set up a timer interrupt for stepper PWM generation
 //	BCSCTL1 |= DIVA_1;                        // ACLK/2
 //	BCSCTL3 |= LFXT1S_2;                      // ACLK = VLO
 
@@ -66,32 +72,37 @@ void main(void)
 	TA0CCR0 = 50000;
 	TA0CTL = TASSEL_2 + MC_2;                  // SMCLK, contmode
 	
-//	TA0CCR0 = 1200;                            //
-//	TA0CTL = TASSEL_1 | MC_1;                  // TACLK = SMCLK, Up mode.
-//	TA0CCTL1 = CCIE + OUTMOD_3;                // TACCTL1 Capture Compare
-//	TA0CCR1 = 600;
-
-	// Two channels of PWM output from Timer1_A3
-	P2DIR |= (BIT2 | BIT4);             // P2.2, P2.4 to output
-	P2SEL |= (BIT2 | BIT4);             // P2.2 to TA1.1, P2.4 to TA1.2
-
-	TA1CCR0 = PWM_PERIOD-1;             // PWM Period
-	TA1CCTL1 = OUTMOD_6;          // CCR1 toggle/set -- output on in high part of triangle
-	TA1CCR1 = PWM_75_PERCENT;                // CCR1 PWM duty cycle
-	TA1CCTL2 = OUTMOD_2;          // CCR2 toggle/reset -- output on in low part of triangle
-	TA1CCR2 = PWM_25_PERCENT;                // CCR2 PWM duty cycle
-	TA1CTL = TASSEL_2 + MC_3;     // SMCLK, up/down mode
+	// Set up another timer interrupt, for general timing operations
+	TA1CCTL0 = CCIE;                             // CCR0 interrupt enabled
+	TA1CCR0 = 50000;
+	TA1CTL = TASSEL_2 + MC_2;                  // SMCLK, contmode
 
 	__enable_interrupt();
-	__bis_SR_register(LPM0_bits + GIE);          // LPM0 with interrupts enabled
+	while(1)
+	{
+		__bis_SR_register(LPM0_bits + GIE);          // LPM0 with interrupts enabled
+		// We get here when the A/D conversion ends after each 100ms interrupt
+		if (lastCountPer100ms != countPer100ms)
+		{
+			unsigned short adcValue = ADC10MEM;	// 0..1023
+			// The idea here is to set step_interval to 65535 if adcValue is very low, and to some
+			// small value if it's high. The small value is selected so that it isn't too fast for the motor.
+			unsigned short hz = ((unsigned long)ADC10MEM*(MAX_STEP_HZ-MIN_STEP_HZ))/1023 + MIN_STEP_HZ;
+			unsigned long adcReciprocal = ((unsigned long)APPROX_CLOCK_HZ) / hz;
+			step_interval = (unsigned short)(adcReciprocal&0xFFFF);
+
+			lastCountPer100ms = countPer100ms;
+		}
+	}
 }
 
 // Timer A0 interrupt service routine
+// Fires at 4x the full-step rate, so we can update the step PWM outputs.
 #pragma vector=TIMER0_A0_VECTOR
 __interrupt void Timer_A0 (void)
 {
-	irqcount++;
-	switch(irqcount&3)
+	irqcount0++;
+	switch(irqcount0&3)
 	{
 	case 0:
 		stepperBits = STEPPER_A1 | STEPPER_B0;
@@ -116,5 +127,24 @@ __interrupt void Timer_A0 (void)
 	else
 		LED_OUT |= LED1;
 	*/
-	TA0CCR0 += step_interval;                            // Add Offset to CCR0
+	TA0CCR0 += step_interval;                            // Add Offset to CCR0 to set time of next interrupt
+}
+
+// Timer A1 interrupt service routine
+// Fires at a fixed rate for general timing operations
+// The ISR starts an ADC conversion and icrements a counter.
+// The ADC interrupt will wake up the main loop
+#pragma vector=TIMER1_A0_VECTOR
+__interrupt void Timer_A1 (void)
+{
+	countPer100ms++;
+	ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
+	TA1CCR0 += (APPROX_CLOCK_HZ/10);	// enter this ISR ten times per second
+}
+
+// ADC10 interrupt service routine (possibly not needed)
+#pragma vector=ADC10_VECTOR
+__interrupt void ADC10_ISR(void)
+{
+	__bic_SR_register_on_exit(CPUOFF);	// wake up the main loop
 }
