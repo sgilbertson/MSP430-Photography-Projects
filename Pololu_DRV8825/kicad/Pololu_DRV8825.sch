@@ -551,28 +551,6 @@ F 3 "" H 950 5600 60  0000 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L GND #PWR023
-U 1 1 55E88C76
-P 700 5850
-F 0 "#PWR023" H 700 5600 50  0001 C CNN
-F 1 "GND" H 700 5700 50  0000 C CNN
-F 2 "" H 700 5850 60  0000 C CNN
-F 3 "" H 700 5850 60  0000 C CNN
-	1    700  5850
-	1    0    0    -1  
-$EndComp
-$Comp
-L GND #PWR024
-U 1 1 55E88CD5
-P 950 5850
-F 0 "#PWR024" H 950 5600 50  0001 C CNN
-F 1 "GND" H 950 5700 50  0000 C CNN
-F 2 "" H 950 5850 60  0000 C CNN
-F 3 "" H 950 5850 60  0000 C CNN
-	1    950  5850
-	1    0    0    -1  
-$EndComp
-$Comp
 L C C2
 U 1 1 55E92F00
 P 4650 2400
@@ -614,17 +592,6 @@ F 3 "" H 1550 5500 60  0000 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR026
-U 1 1 55E9D8EE
-P 1150 7300
-F 0 "#PWR026" H 1150 7050 50  0001 C CNN
-F 1 "GND" H 1150 7150 50  0000 C CNN
-F 2 "" H 1150 7300 60  0000 C CNN
-F 3 "" H 1150 7300 60  0000 C CNN
-	1    1150 7300
-	1    0    0    -1  
-$EndComp
-$Comp
 L CONN_02X10 P4
 U 1 1 55EA0321
 P 2850 6700
@@ -636,10 +603,10 @@ F 3 "" H 2850 5500 60  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L +3.3V #PWR027
+L +3.3V #PWR026
 U 1 1 55EA1205
 P 3300 6150
-F 0 "#PWR027" H 3300 6000 50  0001 C CNN
+F 0 "#PWR026" H 3300 6000 50  0001 C CNN
 F 1 "+3.3V" H 3300 6290 50  0000 C CNN
 F 2 "" H 3300 6150 60  0000 C CNN
 F 3 "" H 3300 6150 60  0000 C CNN
@@ -701,7 +668,7 @@ Wire Wire Line
 Wire Wire Line
 	1700 1900 900  1900
 Wire Wire Line
-	2700 3450 1650 3450
+	1650 3450 2700 3450
 Wire Wire Line
 	1650 2000 900  2000
 Wire Wire Line
@@ -797,7 +764,7 @@ Wire Wire Line
 Wire Wire Line
 	1850 4050 2700 4050
 Wire Wire Line
-	2700 4150 1300 4150
+	1300 4150 2700 4150
 Wire Wire Line
 	1300 4150 1300 4000
 Wire Wire Line
@@ -967,33 +934,31 @@ Wire Wire Line
 Wire Wire Line
 	1300 6250 1150 6250
 Wire Wire Line
-	1150 6250 1150 7300
-Wire Wire Line
 	1300 6350 1150 6350
 Connection ~ 1150 6350
 Wire Wire Line
-	1300 6450 1150 6450
+	1150 6450 1300 6450
 Connection ~ 1150 6450
 Wire Wire Line
-	1300 6550 1150 6550
+	1150 6550 1300 6550
 Connection ~ 1150 6550
 Wire Wire Line
-	1300 6650 1150 6650
+	1150 6650 1300 6650
 Connection ~ 1150 6650
 Wire Wire Line
-	1300 6750 1150 6750
+	800  6750 1150 6750
 Connection ~ 1150 6750
 Wire Wire Line
-	1300 6850 1150 6850
+	1150 6850 1300 6850
 Connection ~ 1150 6850
 Wire Wire Line
-	1300 6950 1150 6950
+	1150 6950 1300 6950
 Connection ~ 1150 6950
 Wire Wire Line
-	1300 7050 1150 7050
+	1150 7050 1300 7050
 Connection ~ 1150 7050
 Wire Wire Line
-	1300 7150 1150 7150
+	1150 7150 1300 7150
 Connection ~ 1150 7150
 Wire Wire Line
 	2000 3250 2000 6250
@@ -1046,9 +1011,9 @@ Wire Wire Line
 	1800 7150 2600 7150
 Connection ~ 2450 5200
 Wire Wire Line
-	3100 7150 3300 7150
+	3300 7150 3100 7150
 Wire Wire Line
-	3300 7150 3300 6150
+	3300 6150 3300 7150
 Wire Wire Line
 	3100 7050 3300 7050
 Connection ~ 3300 7050
@@ -1093,7 +1058,41 @@ Pullups or pots
 Text Notes 1100 7700 0    60   ~ 0
 These two connectors are side-by-side, so you can\nstuff either button + pullup or pot for each input
 Wire Wire Line
-	700  5850 700  5800
+	700  5800 700  6050
 Wire Wire Line
-	950  5850 950  5800
+	950  5800 950  6050
+$Comp
+L CONN_01X02 J3
+U 1 1 55E9E66F
+P 750 6300
+F 0 "J3" H 750 6450 50  0000 C CNN
+F 1 "CONN_01X02" V 850 6300 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x02" H 750 6300 60  0001 C CNN
+F 3 "" H 750 6300 60  0000 C CNN
+	1    750  6300
+	0    -1   -1   0   
+$EndComp
+Wire Wire Line
+	1150 6050 1150 7150
+Wire Wire Line
+	800  6500 800  6750
+$Comp
+L GND #PWR027
+U 1 1 55E9E96F
+P 700 6750
+F 0 "#PWR027" H 700 6500 50  0001 C CNN
+F 1 "GND" H 700 6600 50  0000 C CNN
+F 2 "" H 700 6750 60  0000 C CNN
+F 3 "" H 700 6750 60  0000 C CNN
+	1    700  6750
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	700  6500 700  6750
+Text Notes 600  7400 0    60   ~ 0
+J3 is\nonly to\nallow thin\nGND traces
+Wire Wire Line
+	700  6050 1150 6050
+Connection ~ 1150 6250
+Connection ~ 950  6050
 $EndSCHEMATC
