@@ -1,0 +1,15 @@
+"Id";"Designator";"Package";"Quantity";"Designation";"Supplier and ref";
+1;"BT1";"Pin_Header_Straight_1x02";1;"Battery Pack";;;
+2;"C1,C2";"C_Disc_D6_P5";2;"0.1uf";;;
+3;"C3";"C_Disc_D3_P2.5";1;"2.2uf";;;
+4;"C4,C5";"C_Radial_D5_L6_P2.5";2;"100uf";;;
+5;"D1,D2";"LED-3MM";2;"LED";;;
+6;"J1,J2";"Pin_Header_Straight_1x02";2;"CONN_01X02";;;
+7;"P1,P2";"Pin_Header_Straight_1x10";2;"CONN_01X10";;;
+8;"P3,P4";"Pin_Header_Straight_2x10";2;"CONN_02X10";;;
+9;"P5,P6";"Pin_Header_Straight_1x04";2;"CONN_01X04";;;
+10;"R1,R2";"Resistor_Horizontal_RM15mm";2;"470";;;
+11;"R3";"Resistor_Horizontal_RM15mm";1;"10k";;;
+12;"U1";"DIP-20_W7.62mm";1;"MSP430G2553IN20";;;
+13;"U2";"TO-92_Inline_Narrow_Oval";1;"LM2931Z-3.3/5.0";;;
+14;"U3,U4";"DIP-16_W12.7mm";2;"Pololu_DRV8825";;;

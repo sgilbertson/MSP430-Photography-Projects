@@ -1,0 +1,187 @@
+Cmp-Mod V01 Created by PcbNew   date = 9/4/2015 9:51:45 AM
+
+BeginCmp
+TimeStamp = 55E98E54
+Path = /55E847C6
+Reference = BT1;
+ValeurCmp = Battery Pack;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x02;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98E5A
+Path = /55E7AC7D
+Reference = C1;
+ValeurCmp = 0.1uf;
+IdModule  = Capacitors_ThroughHole:C_Disc_D6_P5;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98E60
+Path = /55E92F00
+Reference = C2;
+ValeurCmp = 0.1uf;
+IdModule  = Capacitors_ThroughHole:C_Disc_D6_P5;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98E66
+Path = /55E75F1C
+Reference = C3;
+ValeurCmp = 2.2uf;
+IdModule  = Capacitors_ThroughHole:C_Disc_D3_P2.5;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98E6C
+Path = /55E72C73
+Reference = C4;
+ValeurCmp = 100uf;
+IdModule  = Capacitors_ThroughHole:C_Radial_D5_L6_P2.5;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98E72
+Path = /55E7807B
+Reference = C5;
+ValeurCmp = 100uf;
+IdModule  = Capacitors_ThroughHole:C_Radial_D5_L6_P2.5;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98E78
+Path = /55E88B50
+Reference = D1;
+ValeurCmp = LED;
+IdModule  = LEDs:LED-3MM;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98E7E
+Path = /55E88C0C
+Reference = D2;
+ValeurCmp = LED;
+IdModule  = LEDs:LED-3MM;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98E84
+Path = /55E76E23
+Reference = J1;
+ValeurCmp = CONN_01X02;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x02;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98E8A
+Path = /55E78593
+Reference = J2;
+ValeurCmp = CONN_01X02;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x02;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98E98
+Path = /55E6FE89
+Reference = P1;
+ValeurCmp = CONN_01X10;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x10;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98EA6
+Path = /55E7001E
+Reference = P2;
+ValeurCmp = CONN_01X10;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x10;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98EBE
+Path = /55E9D599
+Reference = P3;
+ValeurCmp = CONN_02X10;
+IdModule  = Pin_Headers:Pin_Header_Straight_2x10;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98ED6
+Path = /55EA0321
+Reference = P4;
+ValeurCmp = CONN_02X10;
+IdModule  = Pin_Headers:Pin_Header_Straight_2x10;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98EDE
+Path = /55E70AC1
+Reference = P5;
+ValeurCmp = CONN_01X04;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x04;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98EE6
+Path = /55E70B94
+Reference = P6;
+ValeurCmp = CONN_01X04;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x04;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98EEC
+Path = /55E889B9
+Reference = R1;
+ValeurCmp = 470;
+IdModule  = Resistors_ThroughHole:Resistor_Horizontal_RM15mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98EF2
+Path = /55E88A80
+Reference = R2;
+ValeurCmp = 470;
+IdModule  = Resistors_ThroughHole:Resistor_Horizontal_RM15mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98EF8
+Path = /55E786AD
+Reference = R3;
+ValeurCmp = 10k;
+IdModule  = Resistors_ThroughHole:Resistor_Horizontal_RM15mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98F10
+Path = /55E6FDC1
+Reference = U1;
+ValeurCmp = MSP430G2553IN20;
+IdModule  = Housings_DIP:DIP-20_W7.62mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98F17
+Path = /55E7532A
+Reference = U2;
+ValeurCmp = LM2931Z-3.3/5.0;
+IdModule  = Housings_TO-92:TO-92_Inline_Narrow_Oval;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98F2B
+Path = /55E705C8
+Reference = U3;
+ValeurCmp = Pololu_DRV8825;
+IdModule  = PololuDIP:DIP-16_W12.7mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 55E98F3F
+Path = /55E70987
+Reference = U4;
+ValeurCmp = Pololu_DRV8825;
+IdModule  = PololuDIP:DIP-16_W12.7mm;
+EndCmp
+
+EndListe
