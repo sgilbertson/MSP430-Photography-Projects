@@ -5,7 +5,7 @@
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_PROGRAM.TI MSP430 USB1/MSP430" value="${build_artifact:DRV8825_app1}"/>
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_PROJECT.TI MSP430 USB1/MSP430" value="DRV8825_app1"/>
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_TARGET_CONFIG" value="${target_config_active_default:DRV8825_app1}"/>
-<stringAttribute key="com.ti.ccstudio.debug.debugModel.MRU_PROGRAM.TI MSP430 USB1/MSP430" value="C:/Users\Scott Gilbertson\Documents\GitHub\MSP430 Photography Projects\MSP430-Photography-Projects\DRV8825_app1\Debug\DRV8825_app1.out"/>
+<stringAttribute key="com.ti.ccstudio.debug.debugModel.MRU_PROGRAM.TI MSP430 USB1/MSP430" value="C:/Users\Scott Gilbertson\Documents\GitHub\MSP430 Photography Projects\MSP430-Photography-Projects\Pololu_DRV8825\DRV8825_app1\Debug\DRV8825_app1.out"/>
 <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
 <listEntry value="/DRV8825_app1"/>
 </listAttribute>

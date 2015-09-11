@@ -1,16 +1,17 @@
 #include "msp430G2553.h"
 
-/* PWM inverter to drive stepper motor for a motion time-lapse rig
+/* DRV8825_app1 - Stepper motor driver for a motion time-lapse rig, using Pololu DRV8825 boards.
  *
  * Method:
  * Periodic interrupt occurs at four times the full step rate.
  * ISR toggles output pins to make two squarewaves 90° out of phase.
  *
- * Stepper motor connections:
- *  - P2.0 = A+
- *  - P2.1 = A-
- *  - P2.5 = B+
- *  - P2.3 = B-
+ * Stepper motor output connections:
+ *  - P2.0 = /ENABLE for both drivers
+ *  - P2.1 = Motor 1 DIR
+ *  - P2.5 = Motor 2 DIR
+ *  - P2.3 = Motor 1 STEP
+ *  - P2.6 = Motor 2 STEP
  *
  * LEDs, which mirror A+/B+
  *  - P1.0 LED 1 (same as on Launchpad)
@@ -24,11 +25,14 @@
  */
 
 // Stepper motor connection definitions
-#define STEPPER_A1 BIT0
-#define STEPPER_A0 BIT1
-#define STEPPER_B1 BIT5
-#define STEPPER_B0 BIT3
-#define STEPPER_ALL_BITS (STEPPER_A1 + STEPPER_A0 + STEPPER_B1 + STEPPER_B0)
+#define STEPPER_DISABLE BIT0
+#define STEPPER_1_DIR BIT1
+#define STEPPER_2_DIR BIT5
+#define STEPPER_1_STEP BIT3
+#define STEPPER_2_STEP BIT6
+#define STEPPER_ALL_OUTPUTS (STEPPER_DISABLE + STEPPER_1_DIR + STEPPER_2_DIR + STEPPER_1_STEP + STEPPER_2_STEP)
+#define STEPPER_ALL_STEP_BITS (STEPPER_1_STEP + STEPPER_2_STEP)
+
 #define STEPPER_DIR P2DIR
 #define STEPPER_OUT P2OUT
 
@@ -41,12 +45,13 @@
 #define     LED_OUT               P1OUT
 
 #define APPROX_CLOCK_HZ 1107754
+#define MICROSTEP_RATIO 32	// DRV8825 does a 32-point sinewave for micro-stepping
 #define MIN_STEP_HZ ((unsigned short)((APPROX_CLOCK_HZ+32767)/65535))
-#define MAX_STEP_HZ 500
+#define MAX_STEP_HZ (MICROSTEP_RATIO*300)	// experimentally derived for a particular 0.312mA motor
 
 volatile short irqcount0 = 0;
-volatile unsigned short step_interval = APPROX_CLOCK_HZ / 20; // start at 20Hz, which is 5 steps per second
-volatile unsigned short stepperBits = STEPPER_A1 | STEPPER_B1;
+volatile unsigned short step_interval = APPROX_CLOCK_HZ / (MICROSTEP_RATIO*20); // start at 20Hz, which is 5 steps per second
+volatile unsigned short stepperBits = STEPPER_DISABLE | STEPPER_2_DIR;
 volatile unsigned short countPer100ms = 0;
 void main(void)
 {
@@ -56,8 +61,8 @@ void main(void)
 
 	LED_DIR |= LED_ALL;
 	LED_OUT &= ~LED_ALL;
-	STEPPER_DIR |= STEPPER_ALL_BITS;
-	STEPPER_OUT &= ~STEPPER_ALL_BITS;
+	STEPPER_DIR |= STEPPER_ALL_OUTPUTS;
+	STEPPER_OUT &= ~STEPPER_ALL_OUTPUTS;
 
 	// Set up A/D converter for speed-control potentiometer
 	ADC10CTL0 = ADC10SHT_2 + ADC10ON + ADC10IE; // ADC10ON, interrupt enabled
@@ -102,31 +107,19 @@ void main(void)
 __interrupt void Timer_A0 (void)
 {
 	irqcount0++;
-	switch(irqcount0&3)
+	switch(irqcount0&1)
 	{
 	case 0:
-		stepperBits = STEPPER_A1 | STEPPER_B0;
-		break;
-	case 1:
-		stepperBits = STEPPER_A1 | STEPPER_B1;
-		break;
-	case 2:
-		stepperBits = STEPPER_A0 | STEPPER_B1;
+		stepperBits = STEPPER_1_STEP;
 		break;
 	default:
-	case 3:
-		stepperBits = STEPPER_A0 | STEPPER_B0;
+	case 1:
+		stepperBits = 0;
 		break;
 	}
-	STEPPER_OUT = (STEPPER_OUT & ~STEPPER_ALL_BITS) | stepperBits;
+	STEPPER_OUT = (STEPPER_OUT & ~STEPPER_ALL_STEP_BITS) | stepperBits;
 	// LEDs indicate the A+ and B+ stepper signal states
-	LED_OUT = (LED_OUT&~LED_ALL) | ((stepperBits&STEPPER_A1)?LED1:0) | ((stepperBits&STEPPER_B1)?LED2:0);
-	/*
-	if (LED_OUT | LED1)
-		LED_OUT = (LED_OUT ^ LED2) && ~LED1;
-	else
-		LED_OUT |= LED1;
-	*/
+	LED_OUT = (LED_OUT&~LED_ALL) | ((stepperBits&STEPPER_1_STEP)?LED1:0) | ((stepperBits&STEPPER_2_DIR)?LED2:0);
 	TA0CCR0 += step_interval;                            // Add Offset to CCR0 to set time of next interrupt
 }
 
