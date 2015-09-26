@@ -18,10 +18,14 @@
  *  - P1.6 LED 2 (same as on Launchpad)
  *
  *  Speed control
- *   - A1 = potentiometer
+ *   - A1 = potentiometer - forward speed (adjust by holding down forward button)
+ *   - A2 = potentiometer - reverse speed (adjust by holding down reverse button) (FUTURE)
  *
- * FUTURE:
- *  - Buttons to control start/stop and direction
+ *  Buttons (active low)
+ *   - P1.3 = forward
+ *   - P1.4 = reverse
+ *   - P1.5 = stop -- can connect in parallel with a microswitch for a stop limit
+ *
  */
 
 // Stepper motor connection definitions
@@ -35,6 +39,20 @@
 
 #define STEPPER_DIR P2DIR
 #define STEPPER_OUT P2OUT
+
+// Button port/bit definitions
+#define BUTTON_PORT P1IN
+#define BUTTON_FORWARD BIT3
+#define BUTTON_REVERSE BIT4
+#define BUTTON_STOP BIT5
+#define BUTTON_ALL_BITS (BUTTON_FORWARD|BUTTON_REVERSE|BUTTON_STOP)
+
+typedef enum
+{
+	RUNSTATE_OFF,
+	RUNSTATE_FORWARD,
+	RUNSTATE_REVERSE
+} RunningState;
 
 
 // LEDs
@@ -53,10 +71,14 @@ volatile short irqcount0 = 0;
 volatile unsigned short step_interval = APPROX_CLOCK_HZ / (MICROSTEP_RATIO*20); // start at 20Hz, which is 5 steps per second
 volatile unsigned short stepperBits = STEPPER_DISABLE | STEPPER_2_DIR;
 volatile unsigned short countPer100ms = 0;
+volatile unsigned short countPerButtonStateChange = 0;
+volatile RunningState runningState = RUNSTATE_OFF;
 void main(void)
 {
 	volatile unsigned short lastCountPer100ms = countPer100ms;
+	volatile unsigned short lastCountPerButtonStateChange = countPerButtonStateChange;
 	unsigned short nextStepCounter = 0;
+	RunningState adjustingState = RUNSTATE_OFF;
 	WDTCTL = WDTPW + WDTHOLD;  // Stop WDT
 
 	LED_DIR |= LED_ALL;
@@ -82,11 +104,17 @@ void main(void)
 	TA1CCR0 = 50000;
 	TA1CTL = TASSEL_2 + MC_2;                  // SMCLK, contmode
 
+	// Buttons are inputs
+	P1DIR &= ~BUTTON_ALL_BITS;
+	// Enbable an interrupt whenever the state of a button changes
+	P1IE |= BUTTON_ALL_BITS;
+	P1IFG &= ~BUTTON_ALL_BITS;
+
 	__enable_interrupt();
 	while(1)
 	{
 		__bis_SR_register(LPM0_bits + GIE);          // LPM0 with interrupts enabled
-		// We get here when the A/D conversion ends after each 100ms interrupt
+		// We get here when the A/D conversion ends after each 100ms interrupt...
 		if (lastCountPer100ms != countPer100ms)
 		{
 			unsigned short adcValue = ADC10MEM;	// 0..1023
@@ -94,11 +122,52 @@ void main(void)
 			// small value if it's high. The small value is selected so that it isn't too fast for the motor.
 			unsigned short hz = ((unsigned long)ADC10MEM*(MAX_STEP_HZ-MIN_STEP_HZ))/1023 + MIN_STEP_HZ;
 			unsigned long adcReciprocal = ((unsigned long)APPROX_CLOCK_HZ) / hz;
-			step_interval = (unsigned short)(adcReciprocal&0xFFFF);
-
+			if (adjustingState != RUNSTATE_OFF)
+			{
+				// FIXME: use different inputs for forward vs. reverse speed
+				step_interval = (unsigned short)(adcReciprocal&0xFFFF);
+			}
 			lastCountPer100ms = countPer100ms;
 		}
+		// ... or when a button input has changed state ...
+		if (lastCountPerButtonStateChange != countPerButtonStateChange)
+		{
+			if (!(BUTTON_PORT & BUTTON_STOP))
+			{
+				adjustingState = RUNSTATE_OFF;
+				runningState = RUNSTATE_OFF;
+				STEPPER_OUT |= STEPPER_DISABLE;
+			}
+			else if (!(BUTTON_PORT & BUTTON_FORWARD))
+			{
+				adjustingState = RUNSTATE_FORWARD;
+				runningState = RUNSTATE_FORWARD;
+				STEPPER_OUT |= STEPPER_1_DIR;
+				STEPPER_OUT &= ~STEPPER_DISABLE;
+			}
+			else if (!(BUTTON_PORT & BUTTON_REVERSE))
+			{
+				adjustingState = RUNSTATE_REVERSE;
+				runningState = RUNSTATE_REVERSE;
+				STEPPER_OUT &= ~STEPPER_1_DIR;
+				STEPPER_OUT &= ~STEPPER_DISABLE;
+			}
+			else
+			{
+				adjustingState = RUNSTATE_OFF;
+			}
+			lastCountPerButtonStateChange = countPerButtonStateChange;
+		}
 	}
+}
+
+// Port 1 interrupt service routine
+#pragma vector=PORT1_VECTOR
+__interrupt void Port_1(void)
+{
+	countPerButtonStateChange++;
+	P1IFG &= ~BUTTON_ALL_BITS;	// clear the interrupt condition
+	__bic_SR_register_on_exit(CPUOFF);	// wake up the main loop
 }
 
 // Timer A0 interrupt service routine
@@ -107,7 +176,7 @@ void main(void)
 __interrupt void Timer_A0 (void)
 {
 	irqcount0++;
-	switch(irqcount0&1)
+	switch(irqcount0&8)	// Slow down the output by a factor of 8, to make up for timer being too fast for good time-lapse motion
 	{
 	case 0:
 		stepperBits = STEPPER_1_STEP;
@@ -117,7 +186,10 @@ __interrupt void Timer_A0 (void)
 		stepperBits = 0;
 		break;
 	}
-	STEPPER_OUT = (STEPPER_OUT & ~STEPPER_ALL_STEP_BITS) | stepperBits;
+	if (runningState != RUNSTATE_OFF)
+	{
+		STEPPER_OUT = (STEPPER_OUT & ~STEPPER_ALL_STEP_BITS) | stepperBits;
+	}
 	// LEDs indicate the A+ and B+ stepper signal states
 	LED_OUT = (LED_OUT&~LED_ALL) | ((stepperBits&STEPPER_1_STEP)?LED1:0) | ((stepperBits&STEPPER_2_DIR)?LED2:0);
 	TA0CCR0 += step_interval;                            // Add Offset to CCR0 to set time of next interrupt
