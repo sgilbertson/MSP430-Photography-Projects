@@ -19,7 +19,7 @@
  *
  *  Speed control
  *   - A1 = potentiometer - forward speed (adjust by holding down forward button)
- *   - A2 = potentiometer - reverse speed (adjust by holding down reverse button) (FUTURE)
+ *   - A2 = potentiometer - reverse speed (adjust by holding down reverse button)
  *
  *  Buttons (active low)
  *   - P1.3 = forward
@@ -73,12 +73,15 @@ volatile unsigned short stepperBits = STEPPER_DISABLE | STEPPER_2_DIR;
 volatile unsigned short countPer100ms = 0;
 volatile unsigned short countPerButtonStateChange = 0;
 volatile RunningState runningState = RUNSTATE_OFF;
+int adc_buffer[10] = {0};
 void main(void)
 {
 	volatile unsigned short lastCountPer100ms = countPer100ms;
 	volatile unsigned short lastCountPerButtonStateChange = countPerButtonStateChange;
-	unsigned short nextStepCounter = 0;
+	unsigned short forwardStepInterval = step_interval;
+	unsigned short reverseStepInterval = step_interval;
 	RunningState adjustingState = RUNSTATE_OFF;
+	RunningState nextAdjustingState = RUNSTATE_OFF;
 	WDTCTL = WDTPW + WDTHOLD;  // Stop WDT
 
 	LED_DIR |= LED_ALL;
@@ -87,9 +90,10 @@ void main(void)
 	STEPPER_OUT &= ~STEPPER_ALL_OUTPUTS;
 
 	// Set up A/D converter for speed-control potentiometer
-	ADC10CTL0 = ADC10SHT_2 + ADC10ON + ADC10IE; // ADC10ON, interrupt enabled
-	ADC10CTL1 = INCH_1;                       // input A1
-	ADC10AE0 |= 0x02;                         // PA.1 ADC option select
+	ADC10CTL0 = ADC10SHT_2 + ADC10ON + MSC; // ADC10 enabled, multiple conversions, 16 x ADC10CLKs, interrupts disabled
+	ADC10CTL1 = CONSEQ_3 + INCH_2;                       // DTC transfer, input A2,A1
+	ADC10AE0 |= (BIT1 + BIT2);                         // PA.1 & PA.2 ADC option select (not digital I/O)
+	ADC10DTC1 = 2;	// 2 conversions
 
 	// Set up a timer interrupt for stepper PWM generation
 //	BCSCTL1 |= DIVA_1;                        // ACLK/2
@@ -108,6 +112,7 @@ void main(void)
 	P1DIR &= ~BUTTON_ALL_BITS;
 	// Enbable an interrupt whenever the state of a button changes
 	P1IE |= BUTTON_ALL_BITS;
+	P1IES = 0;	// interrupt on falling edges -- gets adjusted in ISR
 	P1IFG &= ~BUTTON_ALL_BITS;
 
 	__enable_interrupt();
@@ -117,61 +122,78 @@ void main(void)
 		// We get here when the A/D conversion ends after each 100ms interrupt...
 		if (lastCountPer100ms != countPer100ms)
 		{
-			unsigned short adcValue = ADC10MEM;	// 0..1023
-			// The idea here is to set step_interval to 65535 if adcValue is very low, and to some
-			// small value if it's high. The small value is selected so that it isn't too fast for the motor.
-			unsigned short hz = ((unsigned long)ADC10MEM*(MAX_STEP_HZ-MIN_STEP_HZ))/1023 + MIN_STEP_HZ;
-			unsigned long adcReciprocal = ((unsigned long)APPROX_CLOCK_HZ) / hz;
 			if (adjustingState != RUNSTATE_OFF)
 			{
-				// FIXME: use different inputs for forward vs. reverse speed
+				int adChannel = ((adjustingState == RUNSTATE_FORWARD) ? 0 : 1);
+				unsigned short adcValue = adc_buffer[adChannel];	// 0..1023
+				// The idea here is to set step_interval to 65535 if adcValue is very low, and to some
+				// small value if it's high. The small value is selected so that it isn't too fast for the motor.
+				unsigned short hz = ((unsigned long)adcValue*(MAX_STEP_HZ-MIN_STEP_HZ))/1023 + MIN_STEP_HZ;
+				unsigned long adcReciprocal = ((unsigned long)APPROX_CLOCK_HZ) / hz;
 				step_interval = (unsigned short)(adcReciprocal&0xFFFF);
+				if (adjustingState == RUNSTATE_FORWARD)
+					forwardStepInterval = step_interval;
+				else
+					reverseStepInterval = step_interval;
 			}
+			else if (runningState == RUNSTATE_FORWARD)
+				step_interval = forwardStepInterval;
+			else
+				step_interval = reverseStepInterval;
+			adjustingState = nextAdjustingState;	// button must be held down >100ms to adjust speed
 			lastCountPer100ms = countPer100ms;
+			// Start the next conversion, with transfers going to adc_buffer
+			ADC10CTL0 &= ~ENC;				// Disable Conversion
+		    while (ADC10CTL1 & BUSY);		// Wait if ADC10 busy
+		    ADC10SA = (int)&adc_buffer[0];
+			ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start for next interval
 		}
 		// ... or when a button input has changed state ...
 		if (lastCountPerButtonStateChange != countPerButtonStateChange)
 		{
 			if (!(BUTTON_PORT & BUTTON_STOP))
 			{
-				adjustingState = RUNSTATE_OFF;
+				nextAdjustingState = adjustingState = RUNSTATE_OFF;
 				runningState = RUNSTATE_OFF;
 				STEPPER_OUT |= STEPPER_DISABLE;
 			}
 			else if (!(BUTTON_PORT & BUTTON_FORWARD))
 			{
-				adjustingState = RUNSTATE_FORWARD;
+				nextAdjustingState = RUNSTATE_FORWARD;
 				runningState = RUNSTATE_FORWARD;
 				STEPPER_OUT |= STEPPER_1_DIR;
 				STEPPER_OUT &= ~STEPPER_DISABLE;
+				ADC10CTL1 = INCH_1;                       // input A1
 			}
 			else if (!(BUTTON_PORT & BUTTON_REVERSE))
 			{
-				adjustingState = RUNSTATE_REVERSE;
+				nextAdjustingState = RUNSTATE_REVERSE;
 				runningState = RUNSTATE_REVERSE;
 				STEPPER_OUT &= ~STEPPER_1_DIR;
 				STEPPER_OUT &= ~STEPPER_DISABLE;
+				ADC10CTL1 = INCH_2;                       // input A2
 			}
 			else
 			{
-				adjustingState = RUNSTATE_OFF;
+				nextAdjustingState = adjustingState = RUNSTATE_OFF;
 			}
 			lastCountPerButtonStateChange = countPerButtonStateChange;
 		}
 	}
 }
 
-// Port 1 interrupt service routine
+// Port 1 interrupt service routine -- fires when a button is pressed or released
 #pragma vector=PORT1_VECTOR
 __interrupt void Port_1(void)
 {
 	countPerButtonStateChange++;
 	P1IFG &= ~BUTTON_ALL_BITS;	// clear the interrupt condition
+	P1IES = BUTTON_PORT & BUTTON_ALL_BITS;	// look for opposite transitions
 	__bic_SR_register_on_exit(CPUOFF);	// wake up the main loop
 }
 
 // Timer A0 interrupt service routine
-// Fires at 4x the full-step rate, so we can update the step PWM outputs.
+// Updates the step PWM outputs.
 #pragma vector=TIMER0_A0_VECTOR
 __interrupt void Timer_A0 (void)
 {
@@ -203,13 +225,6 @@ __interrupt void Timer_A0 (void)
 __interrupt void Timer_A1 (void)
 {
 	countPer100ms++;
-	ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
 	TA1CCR0 += (APPROX_CLOCK_HZ/10);	// enter this ISR ten times per second
-}
-
-// ADC10 interrupt service routine (possibly not needed)
-#pragma vector=ADC10_VECTOR
-__interrupt void ADC10_ISR(void)
-{
 	__bic_SR_register_on_exit(CPUOFF);	// wake up the main loop
 }
