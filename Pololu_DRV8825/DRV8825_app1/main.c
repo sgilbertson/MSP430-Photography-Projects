@@ -73,7 +73,7 @@ volatile unsigned short stepperBits = STEPPER_DISABLE | STEPPER_2_DIR;
 volatile unsigned short countPer100ms = 0;
 volatile unsigned short countPerButtonStateChange = 0;
 volatile RunningState runningState = RUNSTATE_OFF;
-int adc_buffer[10] = {0};
+volatile int adc_buffer[10] = {0};
 void main(void)
 {
 	volatile unsigned short lastCountPer100ms = countPer100ms;
@@ -91,8 +91,9 @@ void main(void)
 
 	// Set up A/D converter for speed-control potentiometer
 	ADC10CTL0 = ADC10SHT_2 + ADC10ON + MSC; // ADC10 enabled, multiple conversions, 16 x ADC10CLKs, interrupts disabled
-	ADC10CTL1 = CONSEQ_3 + INCH_2;                       // DTC transfer, input A2,A1
+	ADC10CTL1 = CONSEQ_1 + INCH_2;                       // DTC transfer, input A2,A1
 	ADC10AE0 |= (BIT1 + BIT2);                         // PA.1 & PA.2 ADC option select (not digital I/O)
+	ADC10DTC0 = 0;	// one-block mode (sample each input once, then stop)
 	ADC10DTC1 = 2;	// 2 conversions
 
 	// Set up a timer interrupt for stepper PWM generation
@@ -136,7 +137,7 @@ void main(void)
 				else
 					reverseStepInterval = step_interval;
 			}
-			else if (runningState == RUNSTATE_FORWARD)
+			if (runningState == RUNSTATE_FORWARD)
 				step_interval = forwardStepInterval;
 			else
 				step_interval = reverseStepInterval;
@@ -145,6 +146,7 @@ void main(void)
 			// Start the next conversion, with transfers going to adc_buffer
 			ADC10CTL0 &= ~ENC;				// Disable Conversion
 		    while (ADC10CTL1 & BUSY);		// Wait if ADC10 busy
+		    ADC10CTL1 = CONSEQ_1 + INCH_2;	// FIXME: are we supposed to have to do this every time?
 		    ADC10SA = (int)&adc_buffer[0];
 			ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start for next interval
 		}
@@ -212,8 +214,13 @@ __interrupt void Timer_A0 (void)
 	{
 		STEPPER_OUT = (STEPPER_OUT & ~STEPPER_ALL_STEP_BITS) | stepperBits;
 	}
-	// LEDs indicate the A+ and B+ stepper signal states
-	LED_OUT = (LED_OUT&~LED_ALL) | ((stepperBits&STEPPER_1_STEP)?LED1:0) | ((stepperBits&STEPPER_2_DIR)?LED2:0);
+	// LEDs indicate the speed and direction
+	if (runningState == RUNSTATE_OFF)
+		LED_OUT = (LED_OUT&~LED_ALL) | LED1 | LED2;	// both LEDs on
+	if (STEPPER_OUT & STEPPER_1_DIR)
+		LED_OUT = (LED_OUT&~LED_ALL) | ((stepperBits&STEPPER_1_STEP)?LED1:0);	// one LED flashing
+	else
+		LED_OUT = (LED_OUT&~LED_ALL) | ((stepperBits&STEPPER_1_STEP)?LED2:0);	// other LED flashing
 	TA0CCR0 += step_interval;                            // Add Offset to CCR0 to set time of next interrupt
 }
 
